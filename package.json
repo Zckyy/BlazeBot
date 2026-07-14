@@ -1,0 +1,43 @@
+{
+  "name": "blazebot",
+  "version": "0.1.0",
+  "description": "Modular Discord bot",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc && node -e \"fs.cpSync('src/services/database/migrations','dist/services/database/migrations',{recursive:true})\"",
+    "start": "node dist/index.js",
+    "deploy-commands": "tsx src/core/deployCommands.ts",
+    "clear-commands": "tsx src/core/clearCommands.ts",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.11.1",
+    "discord.js": "^14.26.5",
+    "dotenv": "^17.4.2",
+    "pino": "^10.3.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^26.1.1",
+    "eslint": "^10.7.0",
+    "pino-pretty": "^13.1.3",
+    "prettier": "^3.9.5",
+    "tsx": "^4.23.1",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.64.0",
+    "vitest": "^4.1.10"
+  },
+  "allowScripts": {
+    "better-sqlite3@12.11.1": true,
+    "esbuild@0.28.1": true
+  }
+}

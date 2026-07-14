@@ -3,7 +3,8 @@
 A modular Discord bot built with TypeScript, discord.js v14, and SQLite. Architecture and
 contracts are specified in [PLAN.md](PLAN.md) — read that before adding features.
 
-Hosted deployments are built automatically from the `main` branch.
+The production bot is hosted by [Bot-Hosting.net](https://bot-hosting.net/) and synchronized
+from the `main` branch.
 
 ## Features
 
@@ -110,4 +111,27 @@ Migrations are plain `.sql` files applied in filename order and tracked in a `mi
 
 ## Deployment
 
-See the **Hosting** section of PLAN.md (recommendation: Railway with a volume mounted at `data/`).
+Production runs as a Node.js 22 application on [Bot-Hosting.net](https://bot-hosting.net/) with
+1 GB RAM, 50% shared CPU, and 1 GB storage. Configure the deployment with:
+
+```text
+Entry file: dist/index.js
+Start command: cd /home/container && if [ -f package.json ]; then npm install --no-fund --no-audit && npm run build; fi && node ${STARTUP_FILE}
+```
+
+Add `DISCORD_TOKEN`, `DISCORD_CLIENT_ID`, `DISCORD_GUILD_ID`, and `LOG_LEVEL` through the host's
+environment-variable page. Never upload or commit `.env`.
+
+### Updating the hosted bot
+
+1. Push the desired changes to the GitHub `main` branch.
+2. Open **Files → GitHub sync** in Bot-Hosting.net.
+3. Select the `main` branch and the **Merge — overwrite repo files only; keep everything else**
+   strategy.
+4. Sync the files, then restart the deployment and confirm the console logs `Bot online`.
+
+Always use **Merge** for this deployment. **Replace all files** wipes the deployment root and
+would delete the persistent `data/blazebot.sqlite` database. The merge workflow was verified by
+redeploying after a `/daily` claim and confirming the 500-chip balance remained intact.
+
+Run `npm run deploy-commands` separately whenever a slash command's definition changes.

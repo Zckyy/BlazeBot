@@ -177,32 +177,29 @@ The bot is a long-lived process (persistent WebSocket connection to Discord's ga
 request/response web app, so it needs a host that keeps a process running continuously — not a
 "serverless"/spin-down-on-idle platform.
 
-**Recommendation: Railway.** Least setup of the viable options: connect the GitHub repo, Railway
-auto-detects the Node project, you set the env vars (`DISCORD_TOKEN`, etc.) in its dashboard, and
-it builds/deploys on every push — no Dockerfile or server management required. It has no
-permanent free plan, but the Hobby plan includes $5/month of usage credit, which comfortably
-covers a lightweight bot like this (idle most of the time, minimal CPU/RAM) — realistic cost is
-$0–3/month. SQLite works fine as long as you attach a Railway volume so `data/blazebot.sqlite`
-persists across redeploys (without a volume, the filesystem resets on each deploy).
+**Production host: [Bot-Hosting.net](https://bot-hosting.net/).** BlazeBot runs there as a Node.js
+22 application with 1 GB RAM, 50% shared CPU, and 1 GB persistent storage. Secrets are configured
+through the host's environment-variable manager and are never committed to GitHub.
 
-Runner-up: **Fly.io** — has a genuinely free always-on allowance (small shared-CPU VM), so it can
-run this bot at $0/month. Slightly more setup than Railway (needs a `Dockerfile` and the `flyctl`
-CLI), but still scriptable in a few commands. Worth switching to if the Railway credit ever stops
-being enough.
+The production entry file is `dist/index.js`. The configured start command installs dependencies,
+builds the TypeScript project, copies the SQL migrations into `dist/`, and launches the compiled
+entry point:
 
-Avoid: Render's free tier and similar "free web service" tiers — they spin the process down after
-~15 minutes of inactivity, which drops the bot's Discord connection. They only work with an
-external keep-alive pinger hack, which adds complexity for no benefit here.
+```sh
+cd /home/container && if [ -f package.json ]; then npm install --no-fund --no-audit && npm run build; fi && node ${STARTUP_FILE}
+```
 
-Setup steps to add to Phase 5 (Documentation) once ready to deploy:
-1. Push the repo to GitHub.
-2. Create a Railway project, link the repo.
-3. Add environment variables in the Railway dashboard (never commit `.env`).
-4. Attach a volume mounted at `data/` so the SQLite file persists.
-5. Set the start command (`npm run build && npm start`) and confirm the deploy logs show the bot
-   logging in successfully.
-6. Run the command-deploy script once (`npm run deploy-commands`) against production — either as
-   a one-off Railway shell command or a local run using the prod token/guild ID.
+Deployments are updated through **Files → GitHub sync** using the `main` branch and the **Merge —
+overwrite repo files only; keep everything else** strategy. Never select **Replace all files**:
+that option wipes the deployment root, including `data/blazebot.sqlite`. Merge updates tracked
+repository files while retaining the SQLite database, `node_modules`, and generated `dist` files.
+After syncing, restart the deployment and confirm `Bot online` appears in the console.
+
+SQLite persistence has been verified across this sync-and-restart procedure: a stored 500-chip
+balance remained available after a GitHub update. Host backups are useful, but important database
+data should also be backed up off-site periodically.
+
+Run `npm run deploy-commands` separately whenever slash command definitions change.
 
 ---
 

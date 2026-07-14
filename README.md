@@ -33,7 +33,7 @@ contracts are specified in [PLAN.md](PLAN.md) — read that before adding featur
 ## Tech stack
 
 TypeScript on Node.js 20+, discord.js v14, SQLite via `better-sqlite3` (WAL mode, plain-SQL
-migrations, repository modules — no ORM), `pino` for structured logging, `vitest` for tests.
+migrations, repository modules — no ORM), and `pino` for structured logging.
 The full rationale for each choice is in [PLAN.md](PLAN.md).
 
 ## Prerequisites
@@ -84,7 +84,7 @@ The bot fails fast at startup if a required variable is missing. Never commit `.
 | `npm run clear-commands` | Remove all registered slash commands (global + guild), e.g. to wipe stale commands from a previous bot setup |
 | `npm run build` | Compile to `dist/` (includes copying migration `.sql` files) |
 | `npm start` | Run the compiled build |
-| `npm run lint` / `typecheck` / `test` | Quality gates — run all three before committing |
+| `npm run lint` / `typecheck` | Optional static quality checks |
 | `npm run format` | Prettier |
 
 ## Adding features

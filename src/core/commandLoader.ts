@@ -26,7 +26,7 @@ export async function loadCommands(
 
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     if (!entry.isDirectory()) continue;
-    // .ts when running under tsx/vitest, .js in the compiled dist build.
+    // .ts when running under tsx, .js in the compiled dist build.
     const file = ['command.ts', 'command.js']
       .map((name) => path.join(dir, entry.name, name))
       .find(existsSync);

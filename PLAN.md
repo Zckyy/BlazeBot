@@ -25,7 +25,6 @@ from folder/interface boundaries, not from speculative generic frameworks.
 | Config/secrets | `.env` via `dotenv` | Standard, simple |
 | Logging | `pino` | Fast, structured logging, negligible overhead |
 | Process management | none required for dev; `pm2` optional for prod | Keep footprint small |
-| Testing | `vitest` | Fast, TS-native |
 | Linting/formatting | `eslint` + `prettier` | Consistency as codebase grows |
 
 No web framework, no message-based queue, no Docker requirement at this stage — those are
@@ -64,9 +63,6 @@ src/
   types/
     command.ts               # shared Command interface
     index.ts
-tests/
-  commands/
-  services/
 .env.example
 package.json
 tsconfig.json
@@ -111,7 +107,7 @@ Nothing reaches back up, so services stay testable and swappable in isolation.
 
 ### Phase 0 — Project scaffolding
 - `npm init`, install dependencies (discord.js, typescript, dotenv, pino, better-sqlite3,
-  eslint, prettier, vitest, tsx for dev running).
+  eslint, prettier, tsx for dev running).
 - `tsconfig.json` (strict mode on), `.eslintrc`, `.prettierrc`.
 - `.env.example` with `DISCORD_TOKEN`, `DISCORD_CLIENT_ID`, `DISCORD_GUILD_ID` (guild id used for
   fast local command deployment during dev), `LOG_LEVEL`.
@@ -148,13 +144,7 @@ Nothing reaches back up, so services stay testable and swappable in isolation.
   functions (`getGuildSettings`, `upsertGuildSettings`) to prove the pattern, even if no command
   uses it yet.
 
-### Phase 4 — Testing & quality gates
-- `vitest` unit tests for: config validation, commandLoader (loads a fixture command), one
-  repository function against an in-memory SQLite DB.
-- `npm run lint`, `npm run typecheck`, `npm run test` — document these in README as the pre-commit
-  checklist.
-
-### Phase 5 — Documentation
+### Phase 4 — Documentation
 - `README.md`: setup steps, env vars, how to add a command/event/service (point back to this
   file's contracts), how to run locally, how to deploy commands.
 

@@ -3,6 +3,8 @@
 A modular Discord bot built with TypeScript, discord.js v14, and SQLite. Architecture and
 contracts are specified in [PLAN.md](PLAN.md) — read that before adding features.
 
+Hosted deployments are built automatically from the `main` branch.
+
 ## Features
 
 - **Leveling / XP** — members earn XP for chatting, with `/rank` cards and a `/leaderboard`.

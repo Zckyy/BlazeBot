@@ -60,13 +60,14 @@ export function getLeaderboard(
   limit = 10,
   offset = 0,
 ): (UserLevel & { rank: number })[] {
+  // RANK() gives ties the same rank, matching getRank's strictly-higher count.
   const rows = getDb()
     .prepare(
-      `SELECT guild_id, user_id, xp, level FROM user_levels
-       WHERE guild_id = ? ORDER BY xp DESC LIMIT ? OFFSET ?`,
+      `SELECT guild_id, user_id, xp, level, RANK() OVER (ORDER BY xp DESC) AS rank
+       FROM user_levels WHERE guild_id = ? ORDER BY xp DESC LIMIT ? OFFSET ?`,
     )
-    .all(guildId, limit, offset) as UserLevelRow[];
-  return rows.map((row, i) => ({ ...toUserLevel(row), rank: offset + i + 1 }));
+    .all(guildId, limit, offset) as (UserLevelRow & { rank: number })[];
+  return rows.map((row) => ({ ...toUserLevel(row), rank: row.rank }));
 }
 
 /** 1-indexed rank in the guild, or undefined if the user has no XP row. */

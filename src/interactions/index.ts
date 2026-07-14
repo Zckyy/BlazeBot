@@ -3,7 +3,7 @@ import type {
   ModalSubmitInteraction,
   StringSelectMenuInteraction,
 } from 'discord.js';
-import { CASINO_PREFIX, handleCasinoInteraction } from './casino.js';
+import { CASINO_PREFIX, handleCasinoInteraction } from './casino/index.js';
 
 export type ComponentInteraction =
   | ButtonInteraction

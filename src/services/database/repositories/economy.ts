@@ -34,34 +34,38 @@ function ensureRow(guildId: string, userId: string): void {
     .run(guildId, userId);
 }
 
+/**
+ * Atomically adds (or subtracts) from one balance column. The guard in the
+ * WHERE clause means a would-go-negative adjustment updates nothing.
+ */
+function adjustBalance(
+  column: 'chips' | 'dollars',
+  guildId: string,
+  userId: string,
+  delta: number,
+): number {
+  if (!Number.isFinite(delta)) throw new Error(`Invalid ${column} adjustment: ${delta}`);
+  ensureRow(guildId, userId);
+  const row = getDb()
+    .prepare(
+      `UPDATE economy_balances
+       SET ${column} = ${column} + ?, updated_at = datetime('now')
+       WHERE guild_id = ? AND user_id = ? AND ${column} + ? >= 0
+       RETURNING ${column} AS value`,
+    )
+    .get(delta, guildId, userId, delta) as { value: number } | undefined;
+  if (!row) throw new Error(column === 'chips' ? 'Insufficient chips' : 'Insufficient dollars');
+  return row.value;
+}
+
 /** Adds (or subtracts) chips. Throws if the balance would go negative. Returns the new chip balance. */
 export function adjustChips(guildId: string, userId: string, delta: number): number {
-  const current = getBalance(guildId, userId)?.chips ?? 0;
-  const next = current + delta;
-  if (next < 0) throw new Error('Insufficient chips');
-  ensureRow(guildId, userId);
-  getDb()
-    .prepare(
-      `UPDATE economy_balances SET chips = ?, updated_at = datetime('now')
-       WHERE guild_id = ? AND user_id = ?`,
-    )
-    .run(next, guildId, userId);
-  return next;
+  return adjustBalance('chips', guildId, userId, delta);
 }
 
 /** Adds (or subtracts) dollars. Throws if the balance would go negative. Returns the new dollar balance. */
 export function adjustDollars(guildId: string, userId: string, delta: number): number {
-  const current = getBalance(guildId, userId)?.dollars ?? 0;
-  const next = current + delta;
-  if (next < 0) throw new Error('Insufficient dollars');
-  ensureRow(guildId, userId);
-  getDb()
-    .prepare(
-      `UPDATE economy_balances SET dollars = ?, updated_at = datetime('now')
-       WHERE guild_id = ? AND user_id = ?`,
-    )
-    .run(next, guildId, userId);
-  return next;
+  return adjustBalance('dollars', guildId, userId, delta);
 }
 
 export function claimDaily(

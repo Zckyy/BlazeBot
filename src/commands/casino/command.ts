@@ -1,6 +1,6 @@
 import { SlashCommandBuilder } from 'discord.js';
 import type { Command } from '../../types/command.js';
-import { hubView } from '../../interactions/casino.js';
+import { hubView } from '../../interactions/casino/index.js';
 
 export const command: Command = {
   data: new SlashCommandBuilder()

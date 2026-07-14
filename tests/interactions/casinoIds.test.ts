@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { decodeCasinoId, encodeCasinoId } from '../../src/interactions/casino.js';
+import { decodeCasinoId, encodeCasinoId } from '../../src/interactions/casino/ids.js';
 
 describe('casino customId codec', () => {
   it('round-trips an id with args', () => {

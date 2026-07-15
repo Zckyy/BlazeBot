@@ -2,7 +2,7 @@ import { getDb } from '../db.js';
 
 export const DAILY_CHIPS = 500;
 export const CHIPS_PER_DOLLAR = 100;
-const DAILY_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+export const DAILY_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
 export interface Balance {
   chips: number;
@@ -73,12 +73,9 @@ export function claimDaily(
   userId: string,
 ): { chips: number; alreadyClaimed: boolean; nextClaimAt?: Date } {
   const balance = getBalance(guildId, userId);
-  if (balance?.lastDailyAt) {
-    const lastClaim = new Date(`${balance.lastDailyAt}Z`).getTime();
-    const nextClaim = lastClaim + DAILY_COOLDOWN_MS;
-    if (Date.now() < nextClaim) {
-      return { chips: balance.chips, alreadyClaimed: true, nextClaimAt: new Date(nextClaim) };
-    }
+  const nextClaimAt = getNextDailyClaimAt(guildId, userId);
+  if (balance && nextClaimAt && Date.now() < nextClaimAt.getTime()) {
+    return { chips: balance.chips, alreadyClaimed: true, nextClaimAt };
   }
   ensureRow(guildId, userId);
   getDb()
@@ -88,7 +85,17 @@ export function claimDaily(
        WHERE guild_id = ? AND user_id = ?`,
     )
     .run(DAILY_CHIPS, guildId, userId);
-  return { chips: getBalance(guildId, userId)!.chips, alreadyClaimed: false };
+  return {
+    chips: getBalance(guildId, userId)!.chips,
+    alreadyClaimed: false,
+    nextClaimAt: getNextDailyClaimAt(guildId, userId),
+  };
+}
+
+export function getNextDailyClaimAt(guildId: string, userId: string): Date | undefined {
+  const lastDailyAt = getBalance(guildId, userId)?.lastDailyAt;
+  if (!lastDailyAt) return undefined;
+  return new Date(new Date(`${lastDailyAt.replace(' ', 'T')}Z`).getTime() + DAILY_COOLDOWN_MS);
 }
 
 /** Converts chips to dollars at CHIPS_PER_DOLLAR. Throws if insufficient chips. */

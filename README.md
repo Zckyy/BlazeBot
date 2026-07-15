@@ -9,8 +9,8 @@ from the `main` branch.
 ## Features
 
 - **Leveling / XP** — members earn XP for chatting, with `/rank` cards and a `/leaderboard`.
-- **Economy** — daily chip claims (`/daily`), balances (`/balance`), peer transfers (`/give`),
-  and cashing chips out into dollars (`/cashout`).
+- **Economy** — daily chip claims with opt-in cooldown DMs (`/daily`), balances (`/balance`),
+  peer transfers (`/give`), and cashing chips out into dollars (`/cashout`).
 - **Casino** — a single `/casino` hub with a game-select menu; games currently include
   **roulette**, **slots**, and **video blackjack** (hit/stand only, Tower Unite style).
 - **Shop & inventory** — spend dollars on cosmetic items (`/shop`, `/inventory`); one item can
@@ -27,7 +27,7 @@ from the `main` branch.
 | `/ping`                        | Health check                                           |
 | `/rank`                        | Your level, XP, and progress                           |
 | `/leaderboard`                 | Server XP leaderboard                                  |
-| `/daily`                       | Claim your daily chips                                 |
+| `/daily`                       | Claim daily chips and optionally request a reminder    |
 | `/balance`                     | Your chips and dollars                                 |
 | `/give`                        | Give chips to another member                           |
 | `/cashout`                     | Convert chips into dollars                             |
@@ -133,6 +133,13 @@ The core (`src/core/`) never changes when you add a feature. See PLAN.md for the
 
 SQLite file at `data/blazebot.sqlite` (WAL mode), created automatically on first run.
 Migrations are plain `.sql` files applied in filename order and tracked in a `migrations` table.
+
+### Daily reminders
+
+After a successful `/daily` claim, press **Remind me** to receive a DM when the 24-hour cooldown
+ends. The confirmation includes a cancellation button, and setting a new reminder replaces any
+older reminder for the same server. Reminders survive bot restarts, but delivery requires the bot
+to be running. Users who block server-member DMs or block the bot cannot receive the reminder.
 
 ## Deployment
 

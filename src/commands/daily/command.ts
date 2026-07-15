@@ -1,6 +1,13 @@
-import { SlashCommandBuilder, time } from 'discord.js';
+import {
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  SlashCommandBuilder,
+  time,
+} from 'discord.js';
 import type { Command } from '../../types/command.js';
 import { claimDaily, DAILY_CHIPS } from '../../services/database/repositories/economy.js';
+import { dailyReminderCustomId } from '../../interactions/dailyReminder/ids.js';
 
 export const command: Command = {
   data: new SlashCommandBuilder()
@@ -21,8 +28,17 @@ export const command: Command = {
       return;
     }
 
-    await interaction.reply(
-      `🪙 You claimed **${DAILY_CHIPS}** chips! You now have **${result.chips}** chips.`,
-    );
+    await interaction.reply({
+      content: `🪙 You claimed **${DAILY_CHIPS}** chips! You now have **${result.chips}** chips.`,
+      components: [
+        new ActionRowBuilder<ButtonBuilder>().addComponents(
+          new ButtonBuilder()
+            .setCustomId(dailyReminderCustomId('set', interaction.user.id))
+            .setLabel('Remind me')
+            .setEmoji('🔔')
+            .setStyle(ButtonStyle.Secondary),
+        ),
+      ],
+    });
   },
 };

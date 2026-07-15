@@ -99,8 +99,8 @@ and restart BlazeBot. The bot also needs View Channel, Create Public Threads, Se
 Threads, and Read Message History permissions in channels where `/chat start` is used.
 
 Ordinary messages do not expose a search tool. Enable it for a one-off command with the `search`
-option, or prefix a message inside an AI thread with `!search`. Search uses OpenRouter's server-side
-tool with strict result/context caps and returns Discord-friendly source links. BlazeBot stores
+option, or prefix a message inside an AI thread with `!search`. Search uses OpenRouter's web-search
+integration with a strict result cap and returns Discord-friendly source links. BlazeBot stores
 OpenRouter's exact reported token cost and number of search requests for budget accounting.
 
 ## Scripts

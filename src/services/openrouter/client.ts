@@ -79,15 +79,11 @@ export class OpenRouterClient {
           },
         };
         if (options.webSearch) {
-          body.tools = [
+          body.plugins = [
             {
-              type: 'openrouter:web_search',
-              parameters: {
-                engine: 'parallel',
-                max_results: 3,
-                max_total_results: 5,
-                max_characters: 1_500,
-              },
+              id: 'web',
+              engine: 'exa',
+              max_results: 3,
             },
           ];
         }
@@ -127,7 +123,7 @@ export class OpenRouterClient {
           model: responseBody.model || this.options.model,
           text: appendCitationLinks(text, citations),
           citations,
-          usage: extractUsage(responseBody.usage),
+          usage: extractUsage(responseBody.usage, options.webSearch ? 1 : 0),
           latencyMs: Date.now() - startedAt,
         };
       } catch (error) {
@@ -202,13 +198,16 @@ function appendCitationLinks(text: string, citations: OpenRouterCitation[]): str
   return `${text}\n\n**Sources**\n${links.join('\n')}`;
 }
 
-function extractUsage(usage: OpenRouterResponseBody['usage']): OpenRouterUsage {
+function extractUsage(
+  usage: OpenRouterResponseBody['usage'],
+  webSearchFallback: number,
+): OpenRouterUsage {
   return {
     inputTokens: usage?.prompt_tokens ?? 0,
     cachedInputTokens: usage?.prompt_tokens_details?.cached_tokens ?? 0,
     reasoningTokens: usage?.completion_tokens_details?.reasoning_tokens ?? 0,
     outputTokens: usage?.completion_tokens ?? 0,
-    serverSideToolCalls: usage?.server_tool_use?.web_search_requests ?? 0,
+    serverSideToolCalls: usage?.server_tool_use?.web_search_requests ?? webSearchFallback,
     costUsd: typeof usage?.cost === 'number' ? usage.cost : undefined,
   };
 }

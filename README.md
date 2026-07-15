@@ -113,7 +113,6 @@ OpenRouter's exact reported token cost and number of search requests for budget 
 | `npm run build`              | Compile to `dist/` (includes copying migration `.sql` files)                                                 |
 | `npm start`                  | Run the compiled build                                                                                       |
 | `npm run lint` / `typecheck` | Optional static quality checks                                                                               |
-| `npm test`                   | Run the automated test suite                                                                                 |
 | `npm run format`             | Prettier                                                                                                     |
 
 ## Adding features

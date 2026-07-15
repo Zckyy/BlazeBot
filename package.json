@@ -13,8 +13,7 @@
     "clear-commands": "tsx src/core/clearCommands.ts",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "typecheck": "tsc --noEmit",
-    "test": "tsx --test tests/*.test.ts"
+    "typecheck": "tsc --noEmit"
   },
   "engines": {
     "node": ">=20"

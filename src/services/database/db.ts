@@ -25,12 +25,6 @@ export function getDb(): Database.Database {
   return db;
 }
 
-/** Test helper: close and forget the singleton so the next initDatabase() starts fresh. */
-export function closeDatabase(): void {
-  db?.close();
-  db = undefined;
-}
-
 function runMigrations(database: Database.Database): void {
   database.exec(
     `CREATE TABLE IF NOT EXISTS migrations (

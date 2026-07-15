@@ -7,7 +7,7 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc && node -e \"fs.cpSync('src/services/database/migrations','dist/services/database/migrations',{recursive:true})\"",
+    "build": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\" && tsc && node -e \"fs.cpSync('src/services/database/migrations','dist/services/database/migrations',{recursive:true})\"",
     "start": "node dist/index.js",
     "deploy-commands": "tsx src/core/deployCommands.ts",
     "clear-commands": "tsx src/core/clearCommands.ts",

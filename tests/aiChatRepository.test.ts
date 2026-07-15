@@ -8,6 +8,8 @@ import {
   createAiConversation,
   getActiveAiConversationByThreadId,
   getAiContextMessages,
+  getGuildAiSpendToday,
+  recordAiUsage,
   resetAiConversation,
 } from '../src/services/database/repositories/aiChat.js';
 
@@ -20,10 +22,12 @@ test('persists, completes, and resets a conversation turn', () => {
     parentChannelId: 'channel',
     threadId: 'thread',
     ownerUserId: 'user',
-    model: 'grok-4.3',
+    provider: 'openrouter',
+    model: 'deepseek/deepseek-v4-flash',
     reasoningEffort: 'none',
   });
   assert.equal(getActiveAiConversationByThreadId('thread')?.id, conversation.id);
+  assert.equal(getActiveAiConversationByThreadId('thread')?.provider, 'openrouter');
   assert.equal(
     beginAiUserMessage({
       conversationId: conversation.id,
@@ -58,4 +62,22 @@ test('persists, completes, and resets a conversation turn', () => {
   ]);
   assert.equal(resetAiConversation(conversation.id)?.contextSegment, 1);
   assert.deepEqual(getAiContextMessages(conversation.id, 1, 10_000), []);
+
+  recordAiUsage({
+    conversationId: conversation.id,
+    guildId: 'guild',
+    userId: 'user',
+    providerResponseId: 'gen-test',
+    provider: 'openrouter',
+    model: 'deepseek/deepseek-v4-flash',
+    inputTokens: 100,
+    cachedInputTokens: 0,
+    reasoningTokens: 0,
+    outputTokens: 20,
+    serverSideToolCalls: 0,
+    latencyMs: 100,
+    estimatedCostUsd: 0.5,
+    exactCostUsd: 0.2,
+  });
+  assert.equal(getGuildAiSpendToday('guild'), 0.2);
 });

@@ -15,8 +15,8 @@ from the `main` branch.
   **roulette**, **slots**, and **video blackjack** (hit/stand only, Tower Unite style).
 - **Shop & inventory** — spend dollars on cosmetic items (`/shop`, `/inventory`); one item can
   be equipped at a time and grants a casino payout multiplier.
-- **Grok AI chat** — ask one-off questions or create persistent, owner-only conversation threads
-  backed by xAI's Grok 4.3 model, built-in web search, and durable SQLite history.
+- **BlazeBot AI chat** — inexpensive one-off or persistent conversation threads backed by
+  OpenRouter's DeepSeek V4 Flash, opt-in web search, and durable SQLite history.
 - **Modular core** — adding a command, event listener, or stateful feature never touches
   `src/core/`; features self-register via loaders (see [Adding features](#adding-features)).
 
@@ -34,9 +34,9 @@ from the `main` branch.
 | `/casino`                      | Open the casino hub (roulette, slots, video blackjack) |
 | `/shop`                        | Browse and buy items with dollars                      |
 | `/inventory`                   | View and equip your items                              |
-| `/grok ask`                    | Ask Grok a one-off question                            |
-| `/grok start`                  | Start a persistent Grok conversation thread            |
-| `/grok reset` / `info` / `end` | Manage the current Grok conversation                   |
+| `/chat ask`                    | Ask BlazeBot AI; optionally allow web search           |
+| `/chat start`                  | Start a persistent AI conversation thread              |
+| `/chat reset` / `info` / `end` | Manage the current AI conversation                     |
 
 ## Tech stack
 
@@ -55,7 +55,7 @@ The full rationale for each choice is in [PLAN.md](PLAN.md).
 
 1. Go to the [Discord Developer Portal](https://discord.com/developers/applications) and click **New Application**.
 2. Under **Bot**, click **Reset Token** and copy the token → this is `DISCORD_TOKEN`.
-3. Still under **Bot**, enable **Message Content Intent** so Grok can read normal messages inside
+3. Still under **Bot**, enable **Message Content Intent** so AI chat can read normal messages inside
    its dedicated conversation threads.
 4. Under **General Information**, copy the **Application ID** → this is `DISCORD_CLIENT_ID`.
 5. Invite the bot to a test server: **OAuth2 → URL Generator**, check the `bot` and
@@ -82,25 +82,26 @@ You should see `Bot online as <name>` in the logs. Type `/ping` in your test ser
 | `DISCORD_CLIENT_ID`          | yes                | Application ID                                                                                                       |
 | `DISCORD_GUILD_ID`           | no                 | Test server ID — when set, `deploy-commands` registers guild-scoped (instant); when empty, global (~1h to propagate) |
 | `LOG_LEVEL`                  | no                 | pino level, defaults to `info`                                                                                       |
-| `AI_CHAT_ENABLED`            | no                 | Set to `true` to enable `/grok`; defaults to `false`                                                                 |
-| `XAI_API_KEY`                | when AI is enabled | xAI Console API key; never commit it                                                                                 |
-| `XAI_MODEL`                  | no                 | xAI model, defaults to the fixed `grok-4.3` model ID                                                                 |
-| `XAI_REASONING_EFFORT`       | no                 | `none` (default) or `low`                                                                                            |
-| `AI_MAX_OUTPUT_TOKENS`       | no                 | Maximum Grok response tokens, defaults to `1000`                                                                     |
-| `AI_CONTEXT_TOKEN_BUDGET`    | no                 | Approximate recent-history budget, defaults to `30000`                                                               |
-| `AI_MAX_CONCURRENT_REQUESTS` | no                 | Process-wide xAI concurrency, defaults to `2`                                                                        |
-| `AI_DAILY_BUDGET_USD`        | no                 | Per-server estimated daily cap, defaults to `$1`; `0` disables it                                                    |
+| `AI_CHAT_ENABLED`            | no                 | Set to `true` to enable `/chat`; defaults to `false`                                                                 |
+| `OPENROUTER_API_KEY`         | when AI is enabled | Rotated OpenRouter API key; never commit or share it                                                                 |
+| `OPENROUTER_MODEL`           | no                 | OpenRouter model slug; defaults to `deepseek/deepseek-v4-flash`                                                      |
+| `AI_WEB_SEARCH_ENABLED`      | no                 | Global kill switch for explicitly requested search; defaults to `true`                                               |
+| `AI_MAX_OUTPUT_TOKENS`       | no                 | Maximum AI response tokens, defaults to `700`                                                                        |
+| `AI_CONTEXT_TOKEN_BUDGET`    | no                 | Approximate recent-history budget, defaults to `12000`                                                               |
+| `AI_MAX_CONCURRENT_REQUESTS` | no                 | Process-wide OpenRouter concurrency, defaults to `2`                                                                 |
+| `AI_DAILY_BUDGET_USD`        | no                 | Per-server daily cap using provider-reported cost, defaults to `$1`; `0` disables it                                 |
 
 The bot fails fast at startup if a required variable is missing. Never commit `.env`.
 
-To enable Grok, create an API key in the xAI Console, set `AI_CHAT_ENABLED=true` and
-`XAI_API_KEY` in `.env`, enable Discord's Message Content Intent, redeploy slash commands, and
-restart BlazeBot. The bot also needs View Channel, Create Public Threads, Send Messages in Threads,
-and Read Message History permissions in channels where `/grok start` is used.
+To enable AI chat, create a limited OpenRouter API key, set `AI_CHAT_ENABLED=true` and
+`OPENROUTER_API_KEY` in `.env`, enable Discord's Message Content Intent, redeploy slash commands,
+and restart BlazeBot. The bot also needs View Channel, Create Public Threads, Send Messages in
+Threads, and Read Message History permissions in channels where `/chat start` is used.
 
-Every Grok request exposes xAI's server-side Web Search tool. Grok decides when live information is
-useful, may return inline source links, and is limited to five tool calls per request. Web Search
-invocations are included in the stored cost estimate and daily server budget.
+Ordinary messages do not expose a search tool. Enable it for a one-off command with the `search`
+option, or prefix a message inside an AI thread with `!search`. Search uses OpenRouter's server-side
+tool with strict result/context caps and returns Discord-friendly source links. BlazeBot stores
+OpenRouter's exact reported token cost and number of search requests for budget accounting.
 
 ## Scripts
 
@@ -144,8 +145,8 @@ Entry file: dist/index.js
 Start command: cd /home/container && if [ -f package.json ]; then npm install --no-fund --no-audit && npm run build; fi && node ${STARTUP_FILE}
 ```
 
-Add `DISCORD_TOKEN`, `DISCORD_CLIENT_ID`, `DISCORD_GUILD_ID`, and `LOG_LEVEL` through the host's
-environment-variable page. Never upload or commit `.env`.
+Add `DISCORD_TOKEN`, `DISCORD_CLIENT_ID`, `DISCORD_GUILD_ID`, `LOG_LEVEL`, and the AI variables you
+use through the host's environment-variable page. Never upload or commit `.env`.
 
 ### Updating the hosted bot
 

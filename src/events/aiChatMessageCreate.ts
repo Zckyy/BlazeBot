@@ -2,7 +2,7 @@ import type { BotEvent } from '../types/event.js';
 import { logger } from '../core/logger.js';
 import { loadConfig } from '../core/config.js';
 import { getActiveAiConversationByThreadId } from '../services/database/repositories/aiChat.js';
-import { continueGrokConversation } from '../services/aiChat/chat.js';
+import { continueAiConversation } from '../services/aiChat/chat.js';
 import { aiErrorMessage } from '../services/aiChat/errors.js';
 import { splitDiscordMessage } from '../services/aiChat/format.js';
 import { enqueueConversation } from '../services/aiChat/queue.js';
@@ -20,11 +20,19 @@ export const event: BotEvent<'messageCreate'> = {
     if (conversation.ownerUserId !== message.author.id) return;
     if (!loadConfig().aiChatEnabled) return;
 
-    const content = message.content.trim();
-    if (!content) return;
-    if (content.length > MAX_PROMPT_LENGTH) {
+    const parsed = parseThreadPrompt(message.content);
+    if (!parsed.message) {
+      if (parsed.webSearch) {
+        await message.reply({
+          content: 'Put a question after `!search`, you magnificent empty-query machine.',
+          allowedMentions: { parse: [] },
+        });
+      }
+      return;
+    }
+    if (parsed.message.length > MAX_PROMPT_LENGTH) {
       await message.reply({
-        content: `Please keep Grok prompts under ${MAX_PROMPT_LENGTH.toLocaleString()} characters.`,
+        content: `Please keep AI prompts under ${MAX_PROMPT_LENGTH.toLocaleString()} characters.`,
         allowedMentions: { parse: [] },
       });
       return;
@@ -35,7 +43,7 @@ export const event: BotEvent<'messageCreate'> = {
     const last = lastPromptAt.get(cooldownKey) ?? 0;
     if (now - last < USER_COOLDOWN_MS) {
       await message.reply({
-        content: 'Give Grok a few seconds before sending another message.',
+        content: 'Give the AI a few seconds before sending another message.',
         allowedMentions: { parse: [] },
       });
       return;
@@ -46,10 +54,11 @@ export const event: BotEvent<'messageCreate'> = {
     const typingTimer = setInterval(() => void message.channel.sendTyping(), 8_000);
     try {
       const response = await enqueueConversation(conversation.id, () =>
-        continueGrokConversation(conversation, {
+        continueAiConversation(conversation, {
           discordMessageId: message.id,
           userId: message.author.id,
-          message: content,
+          message: parsed.message,
+          webSearch: parsed.webSearch,
         }),
       );
       const chunks = splitDiscordMessage(response.text);
@@ -60,7 +69,7 @@ export const event: BotEvent<'messageCreate'> = {
     } catch (error) {
       logger.warn(
         { err: error, conversationId: conversation.id, messageId: message.id },
-        'Grok conversation turn failed',
+        'AI conversation turn failed',
       );
       await message.reply({ content: aiErrorMessage(error), allowedMentions: { parse: [] } });
     } finally {
@@ -68,3 +77,11 @@ export const event: BotEvent<'messageCreate'> = {
     }
   },
 };
+
+function parseThreadPrompt(content: string): { message: string; webSearch: boolean } {
+  const trimmed = content.trim();
+  const match = /^(?:!search|!web)(?:\s+|$)/i.exec(trimmed);
+  return match
+    ? { message: trimmed.slice(match[0].length).trim(), webSearch: true }
+    : { message: trimmed, webSearch: false };
+}

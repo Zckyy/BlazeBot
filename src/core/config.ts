@@ -7,9 +7,9 @@ export interface Config {
   discordGuildId?: string;
   logLevel: string;
   aiChatEnabled: boolean;
-  xaiApiKey?: string;
-  xaiModel: string;
-  xaiReasoningEffort: 'none' | 'low';
+  openRouterApiKey?: string;
+  openRouterModel: string;
+  aiWebSearchEnabled: boolean;
   aiMaxOutputTokens: number;
   aiContextTokenBudget: number;
   aiMaxConcurrentRequests: number;
@@ -24,13 +24,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   }
 
   const aiChatEnabled = env.AI_CHAT_ENABLED?.toLowerCase() === 'true';
-  if (aiChatEnabled && !env.XAI_API_KEY) {
-    throw new Error('Missing required environment variable when AI chat is enabled: XAI_API_KEY');
-  }
-
-  const reasoningEffort = env.XAI_REASONING_EFFORT || 'none';
-  if (reasoningEffort !== 'none' && reasoningEffort !== 'low') {
-    throw new Error('XAI_REASONING_EFFORT must be either "none" or "low"');
+  if (aiChatEnabled && !env.OPENROUTER_API_KEY) {
+    throw new Error(
+      'Missing required environment variable when AI chat is enabled: OPENROUTER_API_KEY',
+    );
   }
 
   return {
@@ -39,13 +36,13 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     discordGuildId: env.DISCORD_GUILD_ID || undefined,
     logLevel: env.LOG_LEVEL || 'info',
     aiChatEnabled,
-    xaiApiKey: env.XAI_API_KEY || undefined,
-    xaiModel: env.XAI_MODEL || 'grok-4.3',
-    xaiReasoningEffort: reasoningEffort,
-    aiMaxOutputTokens: positiveInteger(env.AI_MAX_OUTPUT_TOKENS, 1_000, 'AI_MAX_OUTPUT_TOKENS'),
+    openRouterApiKey: env.OPENROUTER_API_KEY || undefined,
+    openRouterModel: env.OPENROUTER_MODEL || 'deepseek/deepseek-v4-flash',
+    aiWebSearchEnabled: env.AI_WEB_SEARCH_ENABLED?.toLowerCase() !== 'false',
+    aiMaxOutputTokens: positiveInteger(env.AI_MAX_OUTPUT_TOKENS, 700, 'AI_MAX_OUTPUT_TOKENS'),
     aiContextTokenBudget: positiveInteger(
       env.AI_CONTEXT_TOKEN_BUDGET,
-      30_000,
+      12_000,
       'AI_CONTEXT_TOKEN_BUDGET',
     ),
     aiMaxConcurrentRequests: positiveInteger(

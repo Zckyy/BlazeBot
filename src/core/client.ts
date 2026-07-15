@@ -10,7 +10,7 @@ export function createClient(): BotClient {
     intents: [
       GatewayIntentBits.Guilds,
       GatewayIntentBits.GuildMessages,
-      // Required for natural conversation inside dedicated Grok threads.
+      // Required for natural conversation inside dedicated AI chat threads.
       GatewayIntentBits.MessageContent,
     ],
   });

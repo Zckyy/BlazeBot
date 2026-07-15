@@ -6,6 +6,7 @@ export interface AiConversation {
   parentChannelId: string;
   threadId: string;
   ownerUserId: string;
+  provider: string;
   model: string;
   reasoningEffort: 'none' | 'low';
   promptVersion: number;
@@ -26,6 +27,7 @@ export interface AiUsageRecord {
   guildId: string;
   userId: string;
   providerResponseId: string;
+  provider: 'openrouter';
   model: string;
   inputTokens: number;
   cachedInputTokens: number;
@@ -34,6 +36,7 @@ export interface AiUsageRecord {
   serverSideToolCalls: number;
   latencyMs: number;
   estimatedCostUsd: number;
+  exactCostUsd?: number;
 }
 
 interface ConversationRow {
@@ -42,6 +45,7 @@ interface ConversationRow {
   parent_channel_id: string;
   thread_id: string;
   owner_user_id: string;
+  provider: string;
   model: string;
   reasoning_effort: 'none' | 'low';
   prompt_version: number;
@@ -56,20 +60,22 @@ export function createAiConversation(input: {
   parentChannelId: string;
   threadId: string;
   ownerUserId: string;
+  provider: 'openrouter';
   model: string;
   reasoningEffort: 'none' | 'low';
 }): AiConversation {
   const result = getDb()
     .prepare(
       `INSERT INTO ai_conversations
-         (guild_id, parent_channel_id, thread_id, owner_user_id, model, reasoning_effort)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+         (guild_id, parent_channel_id, thread_id, owner_user_id, provider, model, reasoning_effort)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       input.guildId,
       input.parentChannelId,
       input.threadId,
       input.ownerUserId,
+      input.provider,
       input.model,
       input.reasoningEffort,
     );
@@ -223,16 +229,17 @@ export function recordAiUsage(usage: AiUsageRecord): void {
   getDb()
     .prepare(
       `INSERT INTO ai_usage
-         (conversation_id, guild_id, user_id, provider_response_id, model, input_tokens,
+         (conversation_id, guild_id, user_id, provider_response_id, provider, model, input_tokens,
           cached_input_tokens, reasoning_tokens, output_tokens, server_side_tool_calls, latency_ms,
-          estimated_cost_usd)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          estimated_cost_usd, exact_cost_usd)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       usage.conversationId ?? null,
       usage.guildId,
       usage.userId,
       usage.providerResponseId,
+      usage.provider,
       usage.model,
       usage.inputTokens,
       usage.cachedInputTokens,
@@ -241,13 +248,14 @@ export function recordAiUsage(usage: AiUsageRecord): void {
       usage.serverSideToolCalls,
       usage.latencyMs,
       usage.estimatedCostUsd,
+      usage.exactCostUsd ?? null,
     );
 }
 
 export function getGuildAiSpendToday(guildId: string): number {
   const row = getDb()
     .prepare(
-      `SELECT COALESCE(SUM(estimated_cost_usd), 0) AS total FROM ai_usage
+      `SELECT COALESCE(SUM(COALESCE(exact_cost_usd, estimated_cost_usd)), 0) AS total FROM ai_usage
        WHERE guild_id = ? AND date(created_at) = date('now')`,
     )
     .get(guildId) as { total: number };
@@ -261,6 +269,7 @@ function mapConversation(row: ConversationRow): AiConversation {
     parentChannelId: row.parent_channel_id,
     threadId: row.thread_id,
     ownerUserId: row.owner_user_id,
+    provider: row.provider,
     model: row.model,
     reasoningEffort: row.reasoning_effort,
     promptVersion: row.prompt_version,

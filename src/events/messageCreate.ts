@@ -3,7 +3,7 @@ import { logger } from '../core/logger.js';
 import { addXp } from '../services/database/repositories/userLevels.js';
 import { randomXpAward } from '../services/leveling/xp.js';
 
-const XP_COOLDOWN_MS = 60_000;
+const XP_COOLDOWN_MS = 5_000;
 
 // guildId:userId -> timestamp of last XP award. In-memory is fine: worst case a
 // restart lets everyone earn one extra award early.

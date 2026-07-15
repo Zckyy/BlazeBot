@@ -7,6 +7,8 @@ import {
   unequipSlot,
 } from '../../services/database/repositories/inventory.js';
 import { getShopItem, SHOP_ITEMS } from '../../services/casino/items.js';
+import { getStacks } from '../../services/database/repositories/stackableInventory.js';
+import { getFish } from '../../services/work/config.js';
 
 const itemChoices = SHOP_ITEMS.map((item) => ({ name: item.name, value: item.id }));
 
@@ -41,8 +43,11 @@ export const command: Command = {
 
     if (subcommand === 'list') {
       const inventory = getInventory(guildId, userId);
-      if (inventory.length === 0) {
-        await interaction.reply('🎒 Your inventory is empty — browse `/shop list`.');
+      const stacks = getStacks(guildId, userId);
+      if (inventory.length === 0 && stacks.length === 0) {
+        await interaction.reply(
+          '🎒 Your inventory is empty — browse `/shop list` or try `/work fish`.',
+        );
         return;
       }
       const lines = inventory.map((entry) => {
@@ -52,8 +57,21 @@ export const command: Command = {
       });
       const embed = new EmbedBuilder()
         .setTitle(`🎒 Inventory — ${interaction.user.username}`)
-        .setDescription(lines.join('\n\n'))
         .setColor(0x9b59b6);
+      if (lines.length > 0) embed.setDescription(lines.join('\n\n'));
+      if (stacks.length > 0) {
+        embed.addFields({
+          name: 'Resources',
+          value: stacks
+            .map((stack) => {
+              const fish = getFish(stack.itemId);
+              return fish
+                ? `${fish.emoji} **${fish.name}** × ${stack.quantity} — $${fish.saleValue} each`
+                : `**${stack.itemId}** × ${stack.quantity}`;
+            })
+            .join('\n'),
+        });
+      }
       await interaction.reply({ embeds: [embed] });
       return;
     }

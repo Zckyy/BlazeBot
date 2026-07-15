@@ -5,6 +5,7 @@ import type {
 } from 'discord.js';
 import { CASINO_PREFIX, handleCasinoInteraction } from './casino/index.js';
 import { DAILY_REMINDER_PREFIX, handleDailyReminderInteraction } from './dailyReminder/index.js';
+import { WORK_PREFIX, handleWorkInteraction } from './work/index.js';
 
 export type ComponentInteraction =
   ButtonInteraction | StringSelectMenuInteraction | ModalSubmitInteraction;
@@ -15,4 +16,5 @@ type InteractionHandler = (interaction: ComponentInteraction) => Promise<void>;
 export const interactionHandlers: Record<string, InteractionHandler> = {
   [CASINO_PREFIX]: handleCasinoInteraction,
   [DAILY_REMINDER_PREFIX]: handleDailyReminderInteraction,
+  [WORK_PREFIX]: handleWorkInteraction,
 };

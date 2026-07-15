@@ -11,6 +11,7 @@
     "start": "node dist/index.js",
     "deploy-commands": "tsx src/core/deployCommands.ts",
     "clear-commands": "tsx src/core/clearCommands.ts",
+    "test": "tsx --test tests/*.test.ts",
     "lint": "eslint .",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit"

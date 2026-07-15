@@ -8,13 +8,16 @@ from the `main` branch.
 
 ## Features
 
-- **Leveling / XP** — members earn XP for chatting, with `/rank` cards and a `/leaderboard`.
+- **Leveling / XP** — members earn XP by chatting or completing cooldown-limited `/work`
+  activities, with `/rank` cards and a `/leaderboard`.
 - **Economy** — daily chip claims with opt-in cooldown DMs (`/daily`), balances (`/balance`),
   peer transfers (`/give`), and cashing chips out into dollars (`/cashout`).
 - **Casino** — a single `/casino` hub with a game-select menu; games currently include
   **roulette**, **slots**, and **video blackjack** (hit/stand only, Tower Unite style).
-- **Shop & inventory** — spend dollars on cosmetic items (`/shop`, `/inventory`); one item can
-  be equipped at a time and grants a casino payout multiplier.
+- **Work activities** — timed spelling, fishing, and solo Connect Four award small amounts of XP
+  on separate persistent cooldowns. Fish are stackable resources that can be sold for dollars.
+- **Shop & inventory** — spend dollars on cosmetic items, sell fish, and view both equipment and
+  stackable resources (`/shop`, `/inventory`); one equipped item grants a casino payout multiplier.
 - **BlazeBot AI chat** — inexpensive one-off or persistent conversation threads backed by
   OpenRouter's DeepSeek V4 Flash, opt-in web search, and durable SQLite history.
 - **Modular core** — adding a command, event listener, or stateful feature never touches
@@ -32,8 +35,9 @@ from the `main` branch.
 | `/give`                        | Give chips to another member                           |
 | `/cashout`                     | Convert chips into dollars                             |
 | `/casino`                      | Open the casino hub (roulette, slots, video blackjack) |
-| `/shop`                        | Browse and buy items with dollars                      |
-| `/inventory`                   | View and equip your items                              |
+| `/work`                        | Open the work hub and choose an XP activity            |
+| `/shop`                        | Browse/buy items and sell caught fish                  |
+| `/inventory`                   | View equipment and stackable resources                 |
 | `/chat ask`                    | Ask BlazeBot AI; optionally allow web search           |
 | `/chat start`                  | Start a persistent AI conversation thread              |
 | `/chat reset` / `info` / `end` | Manage the current AI conversation                     |
@@ -112,6 +116,7 @@ OpenRouter's exact reported token cost and number of search requests for budget 
 | `npm run clear-commands`     | Remove all registered slash commands (global + guild), e.g. to wipe stale commands from a previous bot setup |
 | `npm run build`              | Compile to `dist/` (includes copying migration `.sql` files)                                                 |
 | `npm start`                  | Run the compiled build                                                                                       |
+| `npm test`                   | Run activity rule and SQLite repository tests                                                                |
 | `npm run lint` / `typecheck` | Optional static quality checks                                                                               |
 | `npm run format`             | Prettier                                                                                                     |
 
@@ -140,6 +145,13 @@ After a successful `/daily` claim, press **Remind me** to receive a DM when the 
 ends. The confirmation includes a cancellation button, and setting a new reminder replaces any
 older reminder for the same server. Reminders survive bot restarts, but delivery requires the bot
 to be running. Users who block server-member DMs or block the bot cannot receive the reminder.
+
+### Work activities
+
+Use `/work` to open a rich activity hub showing every job and its current cooldown. Choose timed
+spelling, fishing, or solo Connect Four from the menu, then use **Back to Work** to return to the
+hub. Each activity has its own database-backed cooldown. View catches under the Resources section
+of `/inventory list`, then exchange them for dollars with `/shop sell`.
 
 ## Deployment
 

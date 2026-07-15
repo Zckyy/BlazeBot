@@ -15,6 +15,7 @@ export function initDatabase(filename: string = DEFAULT_DB_PATH): Database.Datab
   }
   db = new Database(filename);
   db.pragma('journal_mode = WAL');
+  db.pragma('foreign_keys = ON');
   runMigrations(db);
   return db;
 }

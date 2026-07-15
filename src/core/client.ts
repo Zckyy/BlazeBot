@@ -6,7 +6,12 @@ export class BotClient extends Client<true> {
 }
 
 export function createClient(): BotClient {
-  // Only the intents currently needed — Guilds covers slash commands,
-  // GuildMessages lets the leveling system see messages (content not needed).
-  return new BotClient({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages] });
+  return new BotClient({
+    intents: [
+      GatewayIntentBits.Guilds,
+      GatewayIntentBits.GuildMessages,
+      // Required for natural conversation inside dedicated Grok threads.
+      GatewayIntentBits.MessageContent,
+    ],
+  });
 }

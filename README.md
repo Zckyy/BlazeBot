@@ -15,23 +15,28 @@ from the `main` branch.
   **roulette**, **slots**, and **video blackjack** (hit/stand only, Tower Unite style).
 - **Shop & inventory** — spend dollars on cosmetic items (`/shop`, `/inventory`); one item can
   be equipped at a time and grants a casino payout multiplier.
+- **Grok AI chat** — ask one-off questions or create persistent, owner-only conversation threads
+  backed by xAI's Grok 4.3 model, built-in web search, and durable SQLite history.
 - **Modular core** — adding a command, event listener, or stateful feature never touches
   `src/core/`; features self-register via loaders (see [Adding features](#adding-features)).
 
 ## Slash commands
 
-| Command | Description |
-|---|---|
-| `/ping` | Health check |
-| `/rank` | Your level, XP, and progress |
-| `/leaderboard` | Server XP leaderboard |
-| `/daily` | Claim your daily chips |
-| `/balance` | Your chips and dollars |
-| `/give` | Give chips to another member |
-| `/cashout` | Convert chips into dollars |
-| `/casino` | Open the casino hub (roulette, slots, video blackjack) |
-| `/shop` | Browse and buy items with dollars |
-| `/inventory` | View and equip your items |
+| Command                        | Description                                            |
+| ------------------------------ | ------------------------------------------------------ |
+| `/ping`                        | Health check                                           |
+| `/rank`                        | Your level, XP, and progress                           |
+| `/leaderboard`                 | Server XP leaderboard                                  |
+| `/daily`                       | Claim your daily chips                                 |
+| `/balance`                     | Your chips and dollars                                 |
+| `/give`                        | Give chips to another member                           |
+| `/cashout`                     | Convert chips into dollars                             |
+| `/casino`                      | Open the casino hub (roulette, slots, video blackjack) |
+| `/shop`                        | Browse and buy items with dollars                      |
+| `/inventory`                   | View and equip your items                              |
+| `/grok ask`                    | Ask Grok a one-off question                            |
+| `/grok start`                  | Start a persistent Grok conversation thread            |
+| `/grok reset` / `info` / `end` | Manage the current Grok conversation                   |
 
 ## Tech stack
 
@@ -50,10 +55,12 @@ The full rationale for each choice is in [PLAN.md](PLAN.md).
 
 1. Go to the [Discord Developer Portal](https://discord.com/developers/applications) and click **New Application**.
 2. Under **Bot**, click **Reset Token** and copy the token → this is `DISCORD_TOKEN`.
-3. Under **General Information**, copy the **Application ID** → this is `DISCORD_CLIENT_ID`.
-4. Invite the bot to a test server: **OAuth2 → URL Generator**, check the `bot` and
+3. Still under **Bot**, enable **Message Content Intent** so Grok can read normal messages inside
+   its dedicated conversation threads.
+4. Under **General Information**, copy the **Application ID** → this is `DISCORD_CLIENT_ID`.
+5. Invite the bot to a test server: **OAuth2 → URL Generator**, check the `bot` and
    `applications.commands` scopes, open the generated URL, and pick your server.
-5. In Discord, enable Developer Mode (User Settings → Advanced), right-click your test server,
+6. In Discord, enable Developer Mode (User Settings → Advanced), right-click your test server,
    **Copy Server ID** → this is `DISCORD_GUILD_ID`.
 
 ### 2. Configure and run
@@ -69,26 +76,44 @@ You should see `Bot online as <name>` in the logs. Type `/ping` in your test ser
 
 ## Environment variables
 
-| Variable | Required | Purpose |
-|---|---|---|
-| `DISCORD_TOKEN` | yes | Bot token |
-| `DISCORD_CLIENT_ID` | yes | Application ID |
-| `DISCORD_GUILD_ID` | no | Test server ID — when set, `deploy-commands` registers guild-scoped (instant); when empty, global (~1h to propagate) |
-| `LOG_LEVEL` | no | pino level, defaults to `info` |
+| Variable                     | Required           | Purpose                                                                                                              |
+| ---------------------------- | ------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| `DISCORD_TOKEN`              | yes                | Bot token                                                                                                            |
+| `DISCORD_CLIENT_ID`          | yes                | Application ID                                                                                                       |
+| `DISCORD_GUILD_ID`           | no                 | Test server ID — when set, `deploy-commands` registers guild-scoped (instant); when empty, global (~1h to propagate) |
+| `LOG_LEVEL`                  | no                 | pino level, defaults to `info`                                                                                       |
+| `AI_CHAT_ENABLED`            | no                 | Set to `true` to enable `/grok`; defaults to `false`                                                                 |
+| `XAI_API_KEY`                | when AI is enabled | xAI Console API key; never commit it                                                                                 |
+| `XAI_MODEL`                  | no                 | xAI model, defaults to the fixed `grok-4.3` model ID                                                                 |
+| `XAI_REASONING_EFFORT`       | no                 | `none` (default) or `low`                                                                                            |
+| `AI_MAX_OUTPUT_TOKENS`       | no                 | Maximum Grok response tokens, defaults to `1000`                                                                     |
+| `AI_CONTEXT_TOKEN_BUDGET`    | no                 | Approximate recent-history budget, defaults to `30000`                                                               |
+| `AI_MAX_CONCURRENT_REQUESTS` | no                 | Process-wide xAI concurrency, defaults to `2`                                                                        |
+| `AI_DAILY_BUDGET_USD`        | no                 | Per-server estimated daily cap, defaults to `$1`; `0` disables it                                                    |
 
 The bot fails fast at startup if a required variable is missing. Never commit `.env`.
 
+To enable Grok, create an API key in the xAI Console, set `AI_CHAT_ENABLED=true` and
+`XAI_API_KEY` in `.env`, enable Discord's Message Content Intent, redeploy slash commands, and
+restart BlazeBot. The bot also needs View Channel, Create Public Threads, Send Messages in Threads,
+and Read Message History permissions in channels where `/grok start` is used.
+
+Every Grok request exposes xAI's server-side Web Search tool. Grok decides when live information is
+useful, may return inline source links, and is limited to five tool calls per request. Web Search
+invocations are included in the stored cost estimate and daily server budget.
+
 ## Scripts
 
-| Script | What it does |
-|---|---|
-| `npm run dev` | Run with hot reload (tsx watch) |
-| `npm run deploy-commands` | Push slash command definitions to Discord |
-| `npm run clear-commands` | Remove all registered slash commands (global + guild), e.g. to wipe stale commands from a previous bot setup |
-| `npm run build` | Compile to `dist/` (includes copying migration `.sql` files) |
-| `npm start` | Run the compiled build |
-| `npm run lint` / `typecheck` | Optional static quality checks |
-| `npm run format` | Prettier |
+| Script                       | What it does                                                                                                 |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `npm run dev`                | Run with hot reload (tsx watch)                                                                              |
+| `npm run deploy-commands`    | Push slash command definitions to Discord                                                                    |
+| `npm run clear-commands`     | Remove all registered slash commands (global + guild), e.g. to wipe stale commands from a previous bot setup |
+| `npm run build`              | Compile to `dist/` (includes copying migration `.sql` files)                                                 |
+| `npm start`                  | Run the compiled build                                                                                       |
+| `npm run lint` / `typecheck` | Optional static quality checks                                                                               |
+| `npm test`                   | Run the automated test suite                                                                                 |
+| `npm run format`             | Prettier                                                                                                     |
 
 ## Adding features
 

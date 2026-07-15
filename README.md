@@ -104,7 +104,7 @@ Threads, and Read Message History permissions in channels where `/chat start` is
 
 Ordinary messages do not expose a search tool. Enable it for a one-off command with the `search`
 option, or prefix a message inside an AI thread with `!search`. Search uses OpenRouter's web-search
-integration with a strict result cap and returns Discord-friendly source links. BlazeBot stores
+integration with a strict result cap, without adding sources to the AI's reply. BlazeBot stores
 OpenRouter's exact reported token cost and number of search requests for budget accounting.
 
 ## Scripts

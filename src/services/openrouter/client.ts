@@ -121,7 +121,7 @@ export class OpenRouterClient {
         return {
           id: responseBody.id,
           model: responseBody.model || this.options.model,
-          text: appendCitationLinks(text, citations),
+          text: suppressDiscordLinkEmbeds(text),
           citations,
           usage: extractUsage(responseBody.usage, options.webSearch ? 1 : 0),
           latencyMs: Date.now() - startedAt,
@@ -145,6 +145,24 @@ export class OpenRouterClient {
       ? lastError
       : new OpenRouterApiError('OpenRouter request failed');
   }
+}
+
+export function suppressDiscordLinkEmbeds(text: string): string {
+  const withoutMarkdownLinks = text.replace(
+    /\[([^\]]+)]\((https?:\/\/[^\s)]+)\)/gi,
+    (_match, label: string, url: string) => `${label} (<${url}>)`,
+  );
+
+  return withoutMarkdownLinks.replace(
+    /(^|[^<(])(https?:\/\/[^\s<>]+)/gim,
+    (_match, prefix: string, urlWithPunctuation: string) => {
+      const trailingPunctuation = urlWithPunctuation.match(/[.,!?;:]+$/)?.[0] ?? '';
+      const url = trailingPunctuation
+        ? urlWithPunctuation.slice(0, -trailingPunctuation.length)
+        : urlWithPunctuation;
+      return `${prefix}<${url}>${trailingPunctuation}`;
+    },
+  );
 }
 
 interface OpenRouterResponseBody {
@@ -186,16 +204,6 @@ function extractCitations(annotations: OpenRouterAnnotation[] | undefined): Open
     citations.set(citation.url, { url: citation.url, title: citation.title });
   }
   return [...citations.values()];
-}
-
-function appendCitationLinks(text: string, citations: OpenRouterCitation[]): string {
-  const missing = citations.filter((citation) => !text.includes(citation.url)).slice(0, 5);
-  if (missing.length === 0) return text;
-  const links = missing.map((citation, index) => {
-    const title = escapeMarkdownLabel(citation.title?.trim() || `Source ${index + 1}`);
-    return `- [${title}](${citation.url})`;
-  });
-  return `${text}\n\n**Sources**\n${links.join('\n')}`;
 }
 
 function extractUsage(
@@ -243,15 +251,6 @@ function isHttpUrl(value: string): boolean {
   } catch {
     return false;
   }
-}
-
-function escapeMarkdownLabel(value: string): string {
-  return value
-    .replace(/\s+/g, ' ')
-    .replaceAll('\\', '\\\\')
-    .replaceAll('[', '\\[')
-    .replaceAll(']', '\\]')
-    .slice(0, 100);
 }
 
 function delay(ms: number): Promise<void> {

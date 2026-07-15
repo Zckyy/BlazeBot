@@ -9,5 +9,6 @@ data/
 .claude/
 
 # Local AI agent planning files
+AGENTS.md
 PLAN.md
 Feature Planning/

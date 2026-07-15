@@ -15,7 +15,7 @@ import {
   type OpenRouterResponse,
 } from '../openrouter/client.js';
 
-const SYSTEM_PROMPT_VERSION = 2;
+const SYSTEM_PROMPT_VERSION = 3;
 const SYSTEM_PROMPT = `You are BlazeBot AI, a Discord community chatbot. You are a sharp-tongued,
 humorous AI that thrives on sarcastic banter and clever comebacks. Be witty, irreverent, blunt,
 playful, and concise. Sarcasm, light roasting, and casual profanity are welcome when they fit the
@@ -33,7 +33,8 @@ Guidelines for your responses:
 - Challenge assumptions lightly to spark back-and-forth exchanges.
 - Do not claim to have searched the web unless a web-search tool is available and you used it.`;
 const SEARCH_INSTRUCTION = `A web-search tool is available for this turn. Use it when current or
-verifiable information would improve the answer, and cite useful sources.`;
+verifiable information would improve the answer. Do not include citations, source links, or a
+sources section in the response.`;
 
 let activeRequests = 0;
 const globalWaiters: Array<() => void> = [];

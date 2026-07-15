@@ -7,12 +7,13 @@ import {
   time,
 } from 'discord.js';
 import { getWorkCooldowns } from '../../services/database/repositories/workActivities.js';
+import type { WorkActivityId } from '../../services/work/config.js';
 import { encodeWorkId } from './ids.js';
 
 export function workHubView(guildId: string, userId: string, notice?: string) {
   const cooldowns = getWorkCooldowns(guildId, userId);
   const now = Date.now();
-  const readiness = (activity: 'typing' | 'fishing' | 'connect4') => {
+  const readiness = (activity: WorkActivityId) => {
     const availableAt = cooldowns[activity];
     return !availableAt || availableAt.getTime() <= now
       ? '✅ Ready'
@@ -39,6 +40,14 @@ export function workHubView(guildId: string, userId: string, notice?: string) {
         value:
           'Play against BlazeBot. Earn **25 XP** for a win, **12** for a draw, or **5** for a loss.',
       },
+      {
+        name: `🧠 Trivia — ${readiness('trivia')}`,
+        value: 'Answer one multiple-choice question within 30 seconds. **15 XP**',
+      },
+      {
+        name: `🔀 Word Unscrambling — ${readiness('unscramble')}`,
+        value: 'Rearrange a scrambled word within 20 seconds. **12 XP**',
+      },
     )
     .setFooter({ text: 'Cooldowns are separate and persist across bot restarts.' })
     .setColor(0x3498db);
@@ -64,6 +73,18 @@ export function workHubView(guildId: string, userId: string, notice?: string) {
         value: 'connect4',
         emoji: '🔴',
         description: 'Play a quick game against BlazeBot',
+      },
+      {
+        label: 'Trivia',
+        value: 'trivia',
+        emoji: '🧠',
+        description: 'Answer a multiple-choice question',
+      },
+      {
+        label: 'Word Unscrambling',
+        value: 'unscramble',
+        emoji: '🔀',
+        description: 'Rearrange the letters to find the word',
       },
     );
 

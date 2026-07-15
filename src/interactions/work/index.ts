@@ -11,6 +11,8 @@ import { workHubView, workResultView } from './hub.js';
 import { decodeWorkId, WORK_PREFIX } from './ids.js';
 import { handleTypingInteraction, startTypingFromHub } from './typing.js';
 import { replyEphemeral } from './view.js';
+import { handleTriviaInteraction, startTriviaFromHub } from './trivia.js';
+import { handleUnscrambleInteraction, startUnscrambleFromHub } from './unscramble.js';
 
 export { WORK_PREFIX };
 
@@ -39,6 +41,15 @@ export async function handleWorkInteraction(interaction: ComponentInteraction): 
         decoded.sessionId,
         decoded.argument,
       );
+    } else if (decoded.action.startsWith('trivia-')) {
+      await handleTriviaInteraction(
+        interaction,
+        decoded.action,
+        decoded.sessionId,
+        decoded.argument,
+      );
+    } else if (decoded.action.startsWith('unscramble-')) {
+      await handleUnscrambleInteraction(interaction, decoded.action, decoded.sessionId);
     }
   } finally {
     inFlight.delete(lockKey);
@@ -80,6 +91,16 @@ async function handleActivitySelection(interaction: ComponentInteraction): Promi
         0x2ecc71,
       ),
     );
+    return;
+  }
+
+  if (activity === 'trivia') {
+    await startTriviaFromHub(interaction);
+    return;
+  }
+
+  if (activity === 'unscramble') {
+    await startUnscrambleFromHub(interaction);
     return;
   }
 

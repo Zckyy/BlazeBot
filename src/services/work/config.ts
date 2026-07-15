@@ -1,10 +1,12 @@
-export const WORK_ACTIVITY_IDS = ['typing', 'fishing', 'connect4'] as const;
+export const WORK_ACTIVITY_IDS = ['typing', 'fishing', 'connect4', 'trivia', 'unscramble'] as const;
 export type WorkActivityId = (typeof WORK_ACTIVITY_IDS)[number];
 
 export const WORK_COOLDOWNS_MS: Record<WorkActivityId, number> = {
   typing: 10 * 60 * 1_000,
   fishing: 15 * 60 * 1_000,
   connect4: 20 * 60 * 1_000,
+  trivia: 15 * 60 * 1_000,
+  unscramble: 10 * 60 * 1_000,
 };
 
 export const TYPING_REWARD_XP = 12;
@@ -17,6 +19,12 @@ export const CONNECT4_REWARDS = {
   lost: 5,
 } as const;
 export const CONNECT4_GAME_TIMEOUT_MS = 5 * 60 * 1_000;
+
+export const TRIVIA_REWARD_XP = 15;
+export const TRIVIA_TIME_LIMIT_MS = 30_000;
+
+export const UNSCRAMBLE_REWARD_XP = 12;
+export const UNSCRAMBLE_TIME_LIMIT_MS = 20_000;
 
 export interface FishDefinition {
   id: string;
@@ -122,4 +130,33 @@ export const TYPING_WORDS = [
   'understanding',
   'unfortunately',
   'vulnerability',
+] as const;
+
+export const UNSCRAMBLE_WORDS = [
+  'adventure',
+  'astronomy',
+  'blueprint',
+  'brilliant',
+  'challenge',
+  'chemistry',
+  'companion',
+  'discovery',
+  'festival',
+  'galaxy',
+  'harmony',
+  'invention',
+  'journey',
+  'keyboard',
+  'labyrinth',
+  'mystery',
+  'notebook',
+  'orchestra',
+  'penguin',
+  'question',
+  'rainbow',
+  'sapphire',
+  'telescope',
+  'umbrella',
+  'volcano',
+  'waterfall',
 ] as const;

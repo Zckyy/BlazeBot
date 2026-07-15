@@ -14,8 +14,9 @@ from the `main` branch.
   peer transfers (`/give`), and cashing chips out into dollars (`/cashout`).
 - **Casino** — a single `/casino` hub with a game-select menu; games currently include
   **roulette**, **slots**, and **video blackjack** (hit/stand only, Tower Unite style).
-- **Work activities** — timed spelling, fishing, and solo Connect Four award small amounts of XP
-  on separate persistent cooldowns. Fish are stackable resources that can be sold for dollars.
+- **Work activities** — timed spelling, fishing, solo Connect Four, trivia, and word unscrambling
+  award small amounts of XP on separate persistent cooldowns. Fish are stackable resources that
+  can be sold for dollars.
 - **Shop & inventory** — spend dollars on cosmetic items, sell fish, and view both equipment and
   stackable resources (`/shop`, `/inventory`); one equipped item grants a casino payout multiplier.
 - **BlazeBot AI chat** — inexpensive one-off or persistent conversation threads backed by
@@ -149,9 +150,10 @@ to be running. Users who block server-member DMs or block the bot cannot receive
 ### Work activities
 
 Use `/work` to open a rich activity hub showing every job and its current cooldown. Choose timed
-spelling, fishing, or solo Connect Four from the menu, then use **Back to Work** to return to the
-hub. Each activity has its own database-backed cooldown. View catches under the Resources section
-of `/inventory list`, then exchange them for dollars with `/shop sell`.
+spelling, fishing, solo Connect Four, multiple-choice trivia, or word unscrambling from the menu,
+then use **Back to Work** to return to the hub. Each activity has its own database-backed
+cooldown. View catches under the Resources section of `/inventory list`, then exchange them for
+dollars with `/shop sell`.
 
 ## Deployment
 

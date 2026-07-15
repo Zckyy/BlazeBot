@@ -3,11 +3,15 @@ import { describe, test } from 'node:test';
 import { initDatabase } from '../src/services/database/db.js';
 import {
   completeTypingChallenge,
+  completeTriviaChallenge,
+  completeUnscrambleChallenge,
   createTypingChallenge,
   performFishingActivity,
   saveConnect4Turn,
   startConnect4Game,
   startTypingChallenge,
+  startTriviaChallenge,
+  startUnscrambleChallenge,
   tryClaimCooldown,
 } from '../src/services/database/repositories/workActivities.js';
 import {
@@ -27,6 +31,8 @@ import {
   serializeBoard,
 } from '../src/services/work/connect4.js';
 import { isCorrectTypingAnswer } from '../src/services/work/typing.js';
+import { prepareTriviaQuestion, selectTriviaQuestion } from '../src/services/work/trivia.js';
+import { isCorrectUnscrambleAnswer, scrambleWord } from '../src/services/work/unscramble.js';
 
 initDatabase(':memory:');
 
@@ -78,6 +84,22 @@ describe('work activity rules', () => {
   test('board serialization rejects malformed state', () => {
     assert.equal(serializeBoard(emptyBoard()).length, 42);
     assert.throws(() => parseBoard('012'));
+  });
+
+  test('trivia selection and shuffling retain the correct answer', () => {
+    const question = selectTriviaQuestion(() => 0);
+    const correctAnswer = question.answers[question.correctIndex];
+    const prepared = prepareTriviaQuestion(question, () => 0);
+    assert.equal(prepared.answers[prepared.correctIndex], correctAnswer);
+    assert.notDeepEqual(prepared.answers, question.answers);
+  });
+
+  test('word scrambling always changes the order and answer checks are strict', () => {
+    const scrambled = scrambleWord('adventure', () => 0.999);
+    assert.notEqual(scrambled, 'adventure');
+    assert.deepEqual([...scrambled].sort(), [...'adventure'].sort());
+    assert.equal(isCorrectUnscrambleAnswer('  Adventure ', 'adventure'), true);
+    assert.equal(isCorrectUnscrambleAnswer('adven ture', 'adventure'), false);
   });
 });
 
@@ -205,5 +227,152 @@ describe('work activity persistence', () => {
       'stale',
     );
     assert.equal(getUserLevel('guild-connect4', 'user')?.xp, 25);
+  });
+
+  test('trivia validates ownership and awards XP exactly once', () => {
+    const now = new Date('2026-05-01T00:00:00.000Z');
+    const prepared = prepareTriviaQuestion(
+      selectTriviaQuestion(() => 0),
+      () => 0,
+    );
+    const started = startTriviaChallenge('guild-trivia', 'user', prepared, 60_000, now);
+    assert.equal(started.status, 'started');
+    if (started.status !== 'started') return;
+    assert.equal(
+      completeTriviaChallenge(
+        started.challenge.challengeId,
+        'guild-trivia',
+        'other-user',
+        prepared.correctIndex,
+        new Date(now.getTime() + 1_000),
+      ).status,
+      'invalid',
+    );
+    assert.equal(
+      completeTriviaChallenge(
+        started.challenge.challengeId,
+        'guild-trivia',
+        'user',
+        9,
+        new Date(now.getTime() + 1_000),
+      ).status,
+      'invalid',
+    );
+    assert.equal(
+      completeTriviaChallenge(
+        started.challenge.challengeId,
+        'guild-trivia',
+        'user',
+        prepared.correctIndex,
+        new Date(now.getTime() + 2_000),
+      ).status,
+      'success',
+    );
+    assert.equal(getUserLevel('guild-trivia', 'user')?.xp, 15);
+    assert.equal(
+      completeTriviaChallenge(
+        started.challenge.challengeId,
+        'guild-trivia',
+        'user',
+        prepared.correctIndex,
+        new Date(now.getTime() + 3_000),
+      ).status,
+      'used',
+    );
+    assert.equal(getUserLevel('guild-trivia', 'user')?.xp, 15);
+  });
+
+  test('trivia failures and expired answers award no XP', () => {
+    const now = new Date('2026-05-02T00:00:00.000Z');
+    const prepared = prepareTriviaQuestion(
+      selectTriviaQuestion(() => 0),
+      () => 0,
+    );
+    const failed = startTriviaChallenge('guild-trivia-failed', 'user', prepared, 60_000, now);
+    assert.equal(failed.status, 'started');
+    if (failed.status !== 'started') return;
+    const wrongIndex = (prepared.correctIndex + 1) % 4;
+    assert.equal(
+      completeTriviaChallenge(
+        failed.challenge.challengeId,
+        'guild-trivia-failed',
+        'user',
+        wrongIndex,
+        new Date(now.getTime() + 1_000),
+      ).status,
+      'failed',
+    );
+    const expired = startTriviaChallenge('guild-trivia-expired', 'user', prepared, 60_000, now);
+    assert.equal(expired.status, 'started');
+    if (expired.status !== 'started') return;
+    assert.equal(
+      completeTriviaChallenge(
+        expired.challenge.challengeId,
+        'guild-trivia-expired',
+        'user',
+        prepared.correctIndex,
+        new Date(now.getTime() + 30_001),
+      ).status,
+      'expired',
+    );
+    assert.equal(getUserLevel('guild-trivia-failed', 'user'), undefined);
+    assert.equal(getUserLevel('guild-trivia-expired', 'user'), undefined);
+  });
+
+  test('word unscrambling awards once and enforces its deadline', () => {
+    const now = new Date('2026-06-01T00:00:00.000Z');
+    const started = startUnscrambleChallenge(
+      'guild-unscramble',
+      'user',
+      'adventure',
+      'venturead',
+      60_000,
+      now,
+    );
+    assert.equal(started.status, 'started');
+    if (started.status !== 'started') return;
+    assert.equal(
+      completeUnscrambleChallenge(
+        started.challenge.challengeId,
+        'guild-unscramble',
+        'user',
+        ' Adventure ',
+        new Date(now.getTime() + 1_000),
+      ).status,
+      'success',
+    );
+    assert.equal(getUserLevel('guild-unscramble', 'user')?.xp, 12);
+    assert.equal(
+      completeUnscrambleChallenge(
+        started.challenge.challengeId,
+        'guild-unscramble',
+        'user',
+        'adventure',
+        new Date(now.getTime() + 2_000),
+      ).status,
+      'used',
+    );
+
+    const expired = startUnscrambleChallenge(
+      'guild-unscramble-expired',
+      'user',
+      'blueprint',
+      'printblue',
+      60_000,
+      now,
+    );
+    assert.equal(expired.status, 'started');
+    if (expired.status !== 'started') return;
+    assert.equal(
+      completeUnscrambleChallenge(
+        expired.challenge.challengeId,
+        'guild-unscramble-expired',
+        'user',
+        'blueprint',
+        new Date(now.getTime() + 20_001),
+      ).status,
+      'expired',
+    );
+    assert.equal(getUserLevel('guild-unscramble-expired', 'user'), undefined);
   });
 });

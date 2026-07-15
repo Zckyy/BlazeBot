@@ -5,14 +5,20 @@ import { addStack } from './stackableInventory.js';
 import {
   CONNECT4_GAME_TIMEOUT_MS,
   CONNECT4_REWARDS,
+  TRIVIA_REWARD_XP,
+  TRIVIA_TIME_LIMIT_MS,
   TYPING_CHALLENGE_OFFER_MS,
   TYPING_REWARD_XP,
   TYPING_TIME_LIMIT_MS,
+  UNSCRAMBLE_REWARD_XP,
+  UNSCRAMBLE_TIME_LIMIT_MS,
   type FishDefinition,
   type WorkActivityId,
 } from '../../work/config.js';
 import { isCorrectTypingAnswer } from '../../work/typing.js';
 import { emptyBoard, parseBoard, serializeBoard, type Connect4Board } from '../../work/connect4.js';
+import type { PreparedTriviaQuestion } from '../../work/trivia.js';
+import { isCorrectUnscrambleAnswer } from '../../work/unscramble.js';
 
 interface CooldownRow {
   activity: WorkActivityId;
@@ -217,6 +223,296 @@ function getTypingChallenge(challengeId: string): TypingChallenge | undefined {
     createdAt: new Date(row.created_at),
     startedAt: row.started_at ? new Date(row.started_at) : undefined,
     expiresAt: row.expires_at ? new Date(row.expires_at) : undefined,
+    completedAt: row.completed_at ? new Date(row.completed_at) : undefined,
+    outcome: row.outcome ?? undefined,
+  };
+}
+
+export interface TriviaChallenge {
+  challengeId: string;
+  guildId: string;
+  userId: string;
+  questionId: string;
+  category: string;
+  question: string;
+  answers: [string, string, string, string];
+  correctIndex: number;
+  selectedIndex?: number;
+  createdAt: Date;
+  expiresAt: Date;
+  completedAt?: Date;
+  outcome?: 'success' | 'failed' | 'expired';
+}
+
+interface TriviaChallengeRow {
+  challenge_id: string;
+  guild_id: string;
+  user_id: string;
+  question_id: string;
+  category: string;
+  question: string;
+  answers_json: string;
+  correct_index: number;
+  selected_index: number | null;
+  created_at: string;
+  expires_at: string;
+  completed_at: string | null;
+  outcome: TriviaChallenge['outcome'] | null;
+}
+
+export type StartTriviaResult =
+  { status: 'started'; challenge: TriviaChallenge } | { status: 'cooldown'; availableAt: Date };
+
+export function startTriviaChallenge(
+  guildId: string,
+  userId: string,
+  prepared: PreparedTriviaQuestion,
+  cooldownMs: number,
+  now = new Date(),
+): StartTriviaResult {
+  const db = getDb();
+  return db.transaction(() => {
+    const cooldown = claimCooldown(guildId, userId, 'trivia', cooldownMs, now);
+    if (!cooldown.claimed) {
+      return { status: 'cooldown', availableAt: cooldown.availableAt } as const;
+    }
+    const challengeId = randomUUID();
+    const expiresAt = new Date(now.getTime() + TRIVIA_TIME_LIMIT_MS);
+    db.prepare(
+      `INSERT INTO work_trivia_challenges
+       (challenge_id, guild_id, user_id, question_id, category, question, answers_json,
+        correct_index, created_at, expires_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      challengeId,
+      guildId,
+      userId,
+      prepared.id,
+      prepared.category,
+      prepared.question,
+      JSON.stringify(prepared.answers),
+      prepared.correctIndex,
+      now.toISOString(),
+      expiresAt.toISOString(),
+    );
+    return {
+      status: 'started',
+      challenge: {
+        challengeId,
+        guildId,
+        userId,
+        questionId: prepared.id,
+        category: prepared.category,
+        question: prepared.question,
+        answers: prepared.answers,
+        correctIndex: prepared.correctIndex,
+        createdAt: now,
+        expiresAt,
+      },
+    } as const;
+  })();
+}
+
+export type CompleteTriviaResult =
+  | { status: 'success'; award: XpAwardResult; correctAnswer: string }
+  | { status: 'failed' | 'expired'; correctAnswer: string }
+  | { status: 'invalid' | 'used' };
+
+export function completeTriviaChallenge(
+  challengeId: string,
+  guildId: string,
+  userId: string,
+  selectedIndex: number,
+  now = new Date(),
+): CompleteTriviaResult {
+  const db = getDb();
+  return db.transaction(() => {
+    const challenge = getTriviaChallenge(challengeId);
+    if (
+      !challenge ||
+      challenge.guildId !== guildId ||
+      challenge.userId !== userId ||
+      !Number.isInteger(selectedIndex) ||
+      selectedIndex < 0 ||
+      selectedIndex >= challenge.answers.length
+    ) {
+      return { status: 'invalid' } as const;
+    }
+    if (challenge.completedAt) return { status: 'used' } as const;
+    const expired = now.getTime() > challenge.expiresAt.getTime();
+    const correct = !expired && selectedIndex === challenge.correctIndex;
+    const outcome = expired ? 'expired' : correct ? 'success' : 'failed';
+    const updated = db
+      .prepare(
+        `UPDATE work_trivia_challenges
+         SET selected_index = ?, completed_at = ?, outcome = ?
+         WHERE challenge_id = ? AND completed_at IS NULL`,
+      )
+      .run(selectedIndex, now.toISOString(), outcome, challengeId);
+    if (updated.changes !== 1) return { status: 'used' } as const;
+    const correctAnswer = challenge.answers[challenge.correctIndex];
+    if (expired) return { status: 'expired', correctAnswer } as const;
+    if (!correct) return { status: 'failed', correctAnswer } as const;
+    return {
+      status: 'success',
+      award: awardXp(guildId, userId, TRIVIA_REWARD_XP),
+      correctAnswer,
+    } as const;
+  })();
+}
+
+function getTriviaChallenge(challengeId: string): TriviaChallenge | undefined {
+  const row = getDb()
+    .prepare('SELECT * FROM work_trivia_challenges WHERE challenge_id = ?')
+    .get(challengeId) as TriviaChallengeRow | undefined;
+  if (!row) return undefined;
+  const answers = JSON.parse(row.answers_json) as unknown;
+  if (
+    !Array.isArray(answers) ||
+    answers.length !== 4 ||
+    answers.some((answer) => typeof answer !== 'string')
+  ) {
+    throw new Error(`Invalid stored trivia answers for challenge ${challengeId}`);
+  }
+  return {
+    challengeId: row.challenge_id,
+    guildId: row.guild_id,
+    userId: row.user_id,
+    questionId: row.question_id,
+    category: row.category,
+    question: row.question,
+    answers: answers as [string, string, string, string],
+    correctIndex: row.correct_index,
+    selectedIndex: row.selected_index ?? undefined,
+    createdAt: new Date(row.created_at),
+    expiresAt: new Date(row.expires_at),
+    completedAt: row.completed_at ? new Date(row.completed_at) : undefined,
+    outcome: row.outcome ?? undefined,
+  };
+}
+
+export interface UnscrambleChallenge {
+  challengeId: string;
+  guildId: string;
+  userId: string;
+  word: string;
+  scrambledWord: string;
+  createdAt: Date;
+  expiresAt: Date;
+  completedAt?: Date;
+  outcome?: 'success' | 'failed' | 'expired';
+}
+
+interface UnscrambleChallengeRow {
+  challenge_id: string;
+  guild_id: string;
+  user_id: string;
+  word: string;
+  scrambled_word: string;
+  created_at: string;
+  expires_at: string;
+  completed_at: string | null;
+  outcome: UnscrambleChallenge['outcome'] | null;
+}
+
+export type StartUnscrambleResult =
+  { status: 'started'; challenge: UnscrambleChallenge } | { status: 'cooldown'; availableAt: Date };
+
+export function startUnscrambleChallenge(
+  guildId: string,
+  userId: string,
+  word: string,
+  scrambledWord: string,
+  cooldownMs: number,
+  now = new Date(),
+): StartUnscrambleResult {
+  const db = getDb();
+  return db.transaction(() => {
+    const cooldown = claimCooldown(guildId, userId, 'unscramble', cooldownMs, now);
+    if (!cooldown.claimed) {
+      return { status: 'cooldown', availableAt: cooldown.availableAt } as const;
+    }
+    const challengeId = randomUUID();
+    const expiresAt = new Date(now.getTime() + UNSCRAMBLE_TIME_LIMIT_MS);
+    db.prepare(
+      `INSERT INTO work_unscramble_challenges
+       (challenge_id, guild_id, user_id, word, scrambled_word, created_at, expires_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      challengeId,
+      guildId,
+      userId,
+      word,
+      scrambledWord,
+      now.toISOString(),
+      expiresAt.toISOString(),
+    );
+    return {
+      status: 'started',
+      challenge: {
+        challengeId,
+        guildId,
+        userId,
+        word,
+        scrambledWord,
+        createdAt: now,
+        expiresAt,
+      },
+    } as const;
+  })();
+}
+
+export type CompleteUnscrambleResult =
+  | { status: 'success'; award: XpAwardResult }
+  | { status: 'failed' | 'expired'; word: string }
+  | { status: 'invalid' | 'used' };
+
+export function completeUnscrambleChallenge(
+  challengeId: string,
+  guildId: string,
+  userId: string,
+  answer: string,
+  now = new Date(),
+): CompleteUnscrambleResult {
+  const db = getDb();
+  return db.transaction(() => {
+    const challenge = getUnscrambleChallenge(challengeId);
+    if (!challenge || challenge.guildId !== guildId || challenge.userId !== userId) {
+      return { status: 'invalid' } as const;
+    }
+    if (challenge.completedAt) return { status: 'used' } as const;
+    const expired = now.getTime() > challenge.expiresAt.getTime();
+    const correct = !expired && isCorrectUnscrambleAnswer(answer, challenge.word);
+    const outcome = expired ? 'expired' : correct ? 'success' : 'failed';
+    const updated = db
+      .prepare(
+        `UPDATE work_unscramble_challenges SET completed_at = ?, outcome = ?
+         WHERE challenge_id = ? AND completed_at IS NULL`,
+      )
+      .run(now.toISOString(), outcome, challengeId);
+    if (updated.changes !== 1) return { status: 'used' } as const;
+    if (expired) return { status: 'expired', word: challenge.word } as const;
+    if (!correct) return { status: 'failed', word: challenge.word } as const;
+    return {
+      status: 'success',
+      award: awardXp(guildId, userId, UNSCRAMBLE_REWARD_XP),
+    } as const;
+  })();
+}
+
+function getUnscrambleChallenge(challengeId: string): UnscrambleChallenge | undefined {
+  const row = getDb()
+    .prepare('SELECT * FROM work_unscramble_challenges WHERE challenge_id = ?')
+    .get(challengeId) as UnscrambleChallengeRow | undefined;
+  if (!row) return undefined;
+  return {
+    challengeId: row.challenge_id,
+    guildId: row.guild_id,
+    userId: row.user_id,
+    word: row.word,
+    scrambledWord: row.scrambled_word,
+    createdAt: new Date(row.created_at),
+    expiresAt: new Date(row.expires_at),
     completedAt: row.completed_at ? new Date(row.completed_at) : undefined,
     outcome: row.outcome ?? undefined,
   };

@@ -1,3 +1,6 @@
+/** Chips awarded for each level gained. */
+export const LEVEL_UP_CHIPS = 100;
+
 /** XP needed to advance from `level` to `level + 1`. */
 export function xpForLevel(level: number): number {
   return 5 * level ** 2 + 50 * level + 100;

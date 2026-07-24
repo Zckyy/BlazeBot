@@ -80,7 +80,7 @@ async function handleActivitySelection(interaction: ComponentInteraction): Promi
       return;
     }
     const levelUp = result.award.leveledUp
-      ? `\n🎉 You reached level **${result.award.userLevel.level}**!`
+      ? `\n🎉 You reached level **${result.award.userLevel.level}** and earned 🪙 **${result.award.chipsAwarded} chips**!`
       : '';
     await interaction.update(
       workResultView(

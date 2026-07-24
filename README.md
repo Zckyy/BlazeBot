@@ -8,9 +8,10 @@ from the `main` branch.
 
 ## Features
 
-- **Leveling / XP** — members earn XP by chatting or completing cooldown-limited `/work`
+- **Leveling / XP** — members earn XP by chatting or completing cooldown-limited `/work`,
+  with 100 chips awarded for every level gained
   activities, with `/rank` cards and a `/leaderboard`.
-- **Economy** — daily chip claims with opt-in cooldown DMs (`/daily`), balances (`/balance`),
+- **Economy** — daily chip claims with streaks and opt-in cooldown DMs (`/daily`), balances (`/balance`),
   peer transfers (`/give`), and cashing chips out into dollars (`/cashout`).
 - **Casino** — a single `/casino` hub with a game-select menu; games currently include
   **roulette**, **slots**, and **video blackjack** (hit/stand only, Tower Unite style).
@@ -142,7 +143,8 @@ Migrations are plain `.sql` files applied in filename order and tracked in a `mi
 
 ### Daily reminders
 
-After a successful `/daily` claim, press **Remind me** to receive a DM when the 24-hour cooldown
+Successful `/daily` claims build a streak when they are made no more than 48 hours apart. After a
+claim, press **Remind me** to receive a DM when the 24-hour cooldown
 ends. The confirmation includes a cancellation button, and setting a new reminder replaces any
 older reminder for the same server. Reminders survive bot restarts, but delivery requires the bot
 to be running. Users who block server-member DMs or block the bot cannot receive the reminder.

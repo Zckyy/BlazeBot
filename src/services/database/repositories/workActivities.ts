@@ -29,6 +29,7 @@ export interface XpAwardResult {
   xpGained: number;
   userLevel: UserLevel;
   leveledUp: boolean;
+  chipsAwarded: number;
 }
 
 export type CooldownClaim =
@@ -712,5 +713,10 @@ function toConnect4Game(row: Connect4GameRow): Connect4Game {
 
 function awardXp(guildId: string, userId: string, xpGained: number): XpAwardResult {
   const result = addXp(guildId, userId, xpGained);
-  return { xpGained, userLevel: result.userLevel, leveledUp: result.leveledUp };
+  return {
+    xpGained,
+    userLevel: result.userLevel,
+    leveledUp: result.leveledUp,
+    chipsAwarded: result.chipsAwarded,
+  };
 }

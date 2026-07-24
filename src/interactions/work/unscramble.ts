@@ -69,7 +69,7 @@ export async function handleUnscrambleInteraction(
   );
   if (result.status === 'success') {
     const levelUp = result.award.leveledUp
-      ? ` 🎉 You reached level **${result.award.userLevel.level}**!`
+      ? ` 🎉 You reached level **${result.award.userLevel.level}** and earned 🪙 **${result.award.chipsAwarded} chips**!`
       : '';
     await interaction.update(
       workResultView(

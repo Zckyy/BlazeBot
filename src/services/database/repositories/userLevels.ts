@@ -1,5 +1,6 @@
 import { getDb } from '../db.js';
-import { levelFromXp } from '../../leveling/xp.js';
+import { LEVEL_UP_CHIPS, levelFromXp } from '../../leveling/xp.js';
+import { adjustChips } from './economy.js';
 
 export interface UserLevel {
   guildId: string;
@@ -30,14 +31,17 @@ export function addXp(
   guildId: string,
   userId: string,
   amount: number,
-): { userLevel: UserLevel; leveledUp: boolean; previousLevel: number } {
-  const current = getUserLevel(guildId, userId);
-  const previousLevel = current?.level ?? 0;
-  const xp = (current?.xp ?? 0) + amount;
-  const level = levelFromXp(xp);
+): { userLevel: UserLevel; leveledUp: boolean; previousLevel: number; chipsAwarded: number } {
+  const db = getDb();
 
-  getDb()
-    .prepare(
+  return db.transaction(() => {
+    const current = getUserLevel(guildId, userId);
+    const previousLevel = current?.level ?? 0;
+    const xp = (current?.xp ?? 0) + amount;
+    const level = levelFromXp(xp);
+    const chipsAwarded = Math.max(0, level - previousLevel) * LEVEL_UP_CHIPS;
+
+    db.prepare(
       `INSERT INTO user_levels (guild_id, user_id, xp, level, last_xp_at, updated_at)
        VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
        ON CONFLICT(guild_id, user_id) DO UPDATE SET
@@ -45,14 +49,17 @@ export function addXp(
          level = excluded.level,
          last_xp_at = excluded.last_xp_at,
          updated_at = excluded.updated_at`,
-    )
-    .run(guildId, userId, xp, level);
+    ).run(guildId, userId, xp, level);
 
-  return {
-    userLevel: { guildId, userId, xp, level },
-    leveledUp: level > previousLevel,
-    previousLevel,
-  };
+    if (chipsAwarded > 0) adjustChips(guildId, userId, chipsAwarded);
+
+    return {
+      userLevel: { guildId, userId, xp, level },
+      leveledUp: level > previousLevel,
+      previousLevel,
+      chipsAwarded,
+    };
+  })();
 }
 
 export function getLeaderboard(

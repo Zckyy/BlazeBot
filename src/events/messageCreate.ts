@@ -23,12 +23,16 @@ export const event: BotEvent<'messageCreate'> = {
     if (last !== undefined && now - last < XP_COOLDOWN_MS) return;
     lastAward.set(key, now);
 
-    const { userLevel, leveledUp } = addXp(message.guildId, message.author.id, randomXpAward());
+    const { userLevel, leveledUp, chipsAwarded } = addXp(
+      message.guildId,
+      message.author.id,
+      randomXpAward(),
+    );
 
     if (leveledUp) {
       try {
         await message.channel.send(
-          `🎉 GG ${message.author}, you've reached level **${userLevel.level}**!`,
+          `🎉 GG ${message.author}, you've reached level **${userLevel.level}** and earned 🪙 **${chipsAwarded} chips**!`,
         );
       } catch (error) {
         logger.warn({ err: error, channel: message.channelId }, 'Failed to send level-up message');

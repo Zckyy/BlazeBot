@@ -3,27 +3,37 @@ import { getDb } from '../db.js';
 export const DAILY_CHIPS = 500;
 export const CHIPS_PER_DOLLAR = 100;
 export const DAILY_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+export const DAILY_STREAK_WINDOW_MS = 2 * DAILY_COOLDOWN_MS;
 
 export interface Balance {
   chips: number;
   dollars: number;
   lastDailyAt: string | null;
+  dailyStreak: number;
 }
 
 interface BalanceRow {
   chips: number;
   dollars: number;
   last_daily_at: string | null;
+  daily_streak: number;
 }
 
 export function getBalance(guildId: string, userId: string): Balance | undefined {
   const row = getDb()
     .prepare(
-      'SELECT chips, dollars, last_daily_at FROM economy_balances WHERE guild_id = ? AND user_id = ?',
+      `SELECT chips, dollars, last_daily_at, daily_streak
+       FROM economy_balances
+       WHERE guild_id = ? AND user_id = ?`,
     )
     .get(guildId, userId) as BalanceRow | undefined;
   if (!row) return undefined;
-  return { chips: row.chips, dollars: row.dollars, lastDailyAt: row.last_daily_at };
+  return {
+    chips: row.chips,
+    dollars: row.dollars,
+    lastDailyAt: row.last_daily_at,
+    dailyStreak: row.daily_streak,
+  };
 }
 
 function ensureRow(guildId: string, userId: string): void {
@@ -71,22 +81,40 @@ export function adjustDollars(guildId: string, userId: string, delta: number): n
 export function claimDaily(
   guildId: string,
   userId: string,
-): { chips: number; alreadyClaimed: boolean; nextClaimAt?: Date } {
+): { chips: number; dailyStreak: number; alreadyClaimed: boolean; nextClaimAt?: Date } {
   const balance = getBalance(guildId, userId);
   const nextClaimAt = getNextDailyClaimAt(guildId, userId);
   if (balance && nextClaimAt && Date.now() < nextClaimAt.getTime()) {
-    return { chips: balance.chips, alreadyClaimed: true, nextClaimAt };
+    return {
+      chips: balance.chips,
+      dailyStreak: balance.dailyStreak,
+      alreadyClaimed: true,
+      nextClaimAt,
+    };
   }
   ensureRow(guildId, userId);
-  getDb()
+  const claimed = getDb()
     .prepare(
       `UPDATE economy_balances
-       SET chips = chips + ?, last_daily_at = datetime('now'), updated_at = datetime('now')
-       WHERE guild_id = ? AND user_id = ?`,
+       SET chips = chips + ?,
+           daily_streak = CASE
+             WHEN last_daily_at IS NOT NULL
+              AND unixepoch('now') - unixepoch(last_daily_at) <= ? / 1000
+             THEN daily_streak + 1
+             ELSE 1
+           END,
+           last_daily_at = datetime('now'),
+           updated_at = datetime('now')
+       WHERE guild_id = ? AND user_id = ?
+       RETURNING chips, daily_streak`,
     )
-    .run(DAILY_CHIPS, guildId, userId);
+    .get(DAILY_CHIPS, DAILY_STREAK_WINDOW_MS, guildId, userId) as {
+    chips: number;
+    daily_streak: number;
+  };
   return {
-    chips: getBalance(guildId, userId)!.chips,
+    chips: claimed.chips,
+    dailyStreak: claimed.daily_streak,
     alreadyClaimed: false,
     nextClaimAt: getNextDailyClaimAt(guildId, userId),
   };

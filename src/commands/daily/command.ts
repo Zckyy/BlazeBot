@@ -29,7 +29,9 @@ export const command: Command = {
     }
 
     await interaction.reply({
-      content: `🪙 You claimed **${DAILY_CHIPS}** chips! You now have **${result.chips}** chips.`,
+      content:
+        `🪙 You claimed **${DAILY_CHIPS}** chips! You now have **${result.chips}** chips.\n` +
+        `🔥 Daily streak: **${result.dailyStreak} day${result.dailyStreak === 1 ? '' : 's'}**`,
       components: [
         new ActionRowBuilder<ButtonBuilder>().addComponents(
           new ButtonBuilder()
